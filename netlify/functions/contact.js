@@ -15,24 +15,22 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+const jsonResponse = (statusCode, payload) => ({
+  statusCode,
+  headers,
+  body: JSON.stringify(payload),
+});
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: '',
-    };
+    return jsonResponse(200, {});
   }
 
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({
-        success: false,
-        message: 'Method not allowed',
-      }),
-    };
+    return jsonResponse(405, {
+      success: false,
+      message: 'Method not allowed',
+    });
   }
 
   try {
@@ -49,7 +47,10 @@ exports.handler = async (event) => {
     } = data;
 
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      throw new Error('Missing Gmail credentials in environment variables.');
+      return jsonResponse(500, {
+        success: false,
+        message: 'Missing Gmail credentials in Netlify environment variables.',
+      });
     }
 
     const transporter = nodemailer.createTransport({
@@ -80,22 +81,18 @@ exports.handler = async (event) => {
 
     await transporter.sendMail(mailOptions);
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        message: 'Message sent successfully!',
-      }),
-    };
+    return jsonResponse(200, {
+      success: true,
+      message: 'Message sent successfully!',
+    });
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        success: false,
-        message: 'Failed to send message. Please try again later.',
-      }),
-    };
+    console.error('Contact function error:', error);
+
+    return jsonResponse(500, {
+      success: false,
+      message: error && error.message
+        ? error.message
+        : 'Failed to send message. Please try again later.',
+    });
   }
 };

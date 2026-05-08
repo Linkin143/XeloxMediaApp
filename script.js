@@ -194,7 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify(formData)
         });
 
-        const result = await response.json();
+        const rawResponse = await response.text();
+        let result = {};
+
+        try {
+          result = rawResponse ? JSON.parse(rawResponse) : {};
+        } catch {
+          throw new Error(rawResponse || `Unexpected server response (${response.status})`);
+        }
 
         if (response.ok) {
           bookingForm.innerHTML = `
@@ -204,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           `;
         } else {
-          throw new Error(result.message || 'Something went wrong');
+          throw new Error(result.message || `Something went wrong (${response.status})`);
         }
       } catch (error) {
         submitBtn.innerHTML = originalText;

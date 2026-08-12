@@ -238,6 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let cart = loadCart();
+  const clientCards = document.querySelectorAll('.client-card');
+  const clientSoundButtons = document.querySelectorAll('[data-sound-toggle]');
 
   const getCartItems = () => Object.values(cart);
   const getCartCount = () => getCartItems().reduce((sum, item) => sum + item.quantity, 0);
@@ -505,6 +507,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = card.dataset.url;
     if (!url) return;
     window.location.href = url;
+  };
+
+  const stopClientVideo = (card) => {
+    if (!card) return;
+    const video = card.querySelector('.client-video');
+    if (!video) return;
+
+    card.classList.remove('is-playing');
+    video.pause();
+    video.currentTime = 0;
+  };
+
+  const updateClientSoundButton = (card, enabled) => {
+    const button = card.querySelector('[data-sound-toggle]');
+    if (!button) return;
+
+    button.textContent = enabled ? 'Sound On' : 'Sound Off';
+    button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    button.setAttribute(
+      'aria-label',
+      `${enabled ? 'Disable' : 'Enable'} sound for ${card.querySelector('h3')?.textContent || 'this'} video`
+    );
+  };
+
+  const setClientSound = (card, enabled) => {
+    const video = card.querySelector('.client-video');
+    if (!video) return;
+
+    video.dataset.soundEnabled = enabled ? 'true' : 'false';
+    video.muted = !enabled;
+    video.volume = enabled ? 1 : 0;
+    updateClientSoundButton(card, enabled);
+  };
+
+  const playClientVideo = async (card) => {
+    if (!card) return;
+    const video = card.querySelector('.client-video');
+    if (!video) return;
+
+    clientCards.forEach((otherCard) => {
+      if (otherCard !== card) {
+        stopClientVideo(otherCard);
+      }
+    });
+
+    card.classList.add('is-playing');
+    try {
+      const soundEnabled = video.dataset.soundEnabled !== 'false';
+      video.muted = !soundEnabled;
+      video.volume = soundEnabled ? 1 : 0;
+      video.currentTime = 0;
+      await video.play();
+    } catch {
+      // Ignore autoplay interruptions on some browsers.
+    }
   };
 
   // ===== NAVBAR SCROLL EFFECT =====
@@ -852,6 +909,39 @@ document.addEventListener('DOMContentLoaded', () => {
       openServicePage(card);
     });
   }
+
+  clientCards.forEach((card) => {
+    const video = card.querySelector('.client-video');
+    if (video) {
+      video.dataset.soundEnabled = 'true';
+      video.muted = false;
+      video.volume = 1;
+      video.pause();
+      video.currentTime = 0;
+    }
+
+    setClientSound(card, true);
+
+    card.addEventListener('pointerenter', () => {
+      if (window.matchMedia('(hover: hover)').matches) {
+        playClientVideo(card);
+      }
+    });
+
+    card.addEventListener('pointerleave', () => {
+      stopClientVideo(card);
+    });
+
+    const soundToggle = card.querySelector('[data-sound-toggle]');
+    if (soundToggle) {
+      soundToggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const currentEnabled = card.querySelector('.client-video')?.dataset.soundEnabled !== 'false';
+        setClientSound(card, !currentEnabled);
+      });
+    }
+  });
 
   if (cartItems) {
     cartItems.addEventListener('click', handleCartAction);
